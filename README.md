@@ -1,133 +1,158 @@
-[Europages Scraper](https://apify.com/kawsar/europages-scraper?fpr=data)
+[Europages Scraper](https://apify.com/santamaria-automations/europages-scraper?fpr=data)
 
-Search Europages by keyword and pull company profiles into a clean, structured dataset. Names, addresses, phone numbers, websites, founding years, employee counts, coordinates, supplier types, and product keywords — one row per company, ready to use.
+Extract B2B company data from [Europages.com](https://www.europages.com), Europe's largest business directory with millions of companies across 30+ countries.
 
-## What it does
+## What data do you get?
 
-Europages is one of Europe's largest B2B directories, listing several million companies across 26 countries. This actor searches it by keyword, pages through the results automatically, and pushes each company record to your dataset as it goes. Each page returns 30 companies; the actor keeps paging until it hits your per-keyword limit or runs out of results.
+For each company, the scraper extracts:
 
-You can run multiple keywords in a single job. Each keyword gets its own independent search — so if you add three keywords at 100 results each, you get up to 300 records total, all in one run.
+- **Company name** and description
+- **Website URL** and phone number
+- **Full address** (street, postal code, city, country)
+- **GPS coordinates** (latitude/longitude)
+- **Employee count** (e.g., "50-99", "1000+")
+- **Year founded**
+- **Supplier type** (Manufacturer, Distributor, Service provider, etc.)
+- **Product categories** and certifications (ISO, etc.)
+- **Company logo**
 
-## How it works
+## Use with AI Agents (MCP)
 
-The actor fetches Europages search result pages and parses the structured company data embedded in each page's server-side rendered state. No scraping tricks, no browser automation — the data comes directly from the page payload, which means it's fast and reliable.
+Connect this actor to any MCP-compatible AI client — Claude Desktop, Claude.ai, Cursor, VS Code, LangChain, LlamaIndex, or custom agents.
 
-Each page is fetched with built-in bypass infrastructure to handle anti-bot measures. If a page returns an incomplete response, the actor retries up to 3 times before moving on.
+**Apify MCP server URL:**
 
-## Input
+```
+https://mcp.apify.com?tools=santamaria-automations/europages-scraper
+```
 
-| Field | Required | Default | Description |
-| --- | --- | --- | --- |
-| `searchQueries` | Yes | — | One or more keywords to search (e.g. `embroidery`, `solar panels`, `steel pipes`) |
-| `maxItems` | No | 100 | Max company records to collect **per keyword** (max 1,000) |
-| `requestTimeoutSecs` | No | 60 | Per-request timeout in seconds — raise to 90 or 120 if you see timeout errors |
+**Example prompt once connected:**
 
-### Example input
+> "Use `europages-scraper` to find all manufacturers in Germany for 'metalworking'. Return company name, city, employee count, website, and phone as a table."
+
+Clients that support dynamic tool discovery (Claude.ai, VS Code) will receive the full input schema automatically via `add-actor`.
+
+## How to use
+
+### Option 1: Paste a search URL
+
+1. Go to [europages.co.uk](https://www.europages.co.uk) and search for companies
+2. Apply filters (country, supplier type, employee count, etc.)
+3. Copy the search results URL
+4. Paste it into the **Search URLs** field
+
+Works with all Europages domains and URL formats:
+
+- `https://www.europages.co.uk/en/search?q=metalworking&countries=DE`
+- `https://www.europages.co.uk/en/search/supplier-type/production?countries=CH_DE_IT&q=schiffbau`
+- `https://www.europages.co.uk/companies/germany/software.html`
+
+### Option 2: Use search query + country
+
+Set the **Search Query** (e.g., "software") and **Country** (e.g., "germany") fields. The scraper builds the URL automatically.
+
+### Input example
 
 ```
 {
-  "searchQueries": ["embroidery", "workwear", "textile printing"],
-  "maxItems": 200
+  "searchQuery": "metalworking",
+  "country": "DE",
+  "language": "en",
+  "maxResults": 100,
+  "proxyConfiguration": {
+    "useApifyProxy": true
+  }
 }
 ```
 
-## Output
+### Input parameters
 
-Each dataset record is one company. Fields are omitted when the data is not publicly available rather than returned as null.
-
-| Field | Type | Description |
+| Parameter | Type | Description |
 | --- | --- | --- |
-| `companyName` | string | Company name |
-| `companyBio` | string | Short description from the company profile |
-| `city` | string | City |
-| `countryCode` | string | ISO country code (e.g. `FR`, `DE`, `IT`) |
-| `street` | string | Street address |
-| `postalCode` | string | Postal / zip code |
-| `phoneNumber` | string | Phone number |
-| `website` | string | Company website |
-| `logoUrl` | string | Logo image URL |
-| `latitude` | number | Geographic latitude |
-| `longitude` | number | Geographic longitude |
-| `foundingYear` | integer | Year the company was founded |
-| `employeeCount` | string | Headcount range (e.g. `11-50`, `51-200`) |
-| `productCount` | integer | Number of products listed on Europages |
-| `europagesUrl` | string | Direct link to the company's Europages profile |
-| `europagesId` | integer | Internal Europages company ID |
-| `keywords` | array | Product and activity keywords from the profile |
-| `supplierTypes` | array | Supplier labels (e.g. `Manufacturer`, `Distributor`) |
-| `packageTier` | string | Europages membership tier — omitted for free listings |
-| `scrapedAt` | string | ISO 8601 timestamp of when the record was collected |
+| `searchUrls` | array | Europages search result URLs (supports all country domains and URL formats) |
+| `searchQuery` | string | Search keyword (alternative to searchUrls) |
+| `searchType` | string | `company` or `product` (default: `company`) |
+| `country` | string | Country code for search, e.g. `DE`, `FR`, `NL` (default: `DE`) |
+| `language` | string | Language for descriptions and categories. Supports all 21 Europages languages: `en`, `fr`, `de`, `es`, `it`, `nl`, `tr`, `cs`, `da`, `et`, `el`, `lt`, `hu`, `no`, `pl`, `pt`, `ro`, `sl`, `fi`, `sv`, `bg` (default: `en`) |
+| `maxResults` | integer | Maximum companies to scrape (default: 100) |
+| `includeDetails` | boolean | Fetch detail pages for social URLs, certifications (default: false). Most data is available without this. |
+| `proxyConfiguration` | object | Proxy settings |
 
-### Example output record
+## Output example
 
 ```
 {
-  "companyName": "UNITON",
-  "companyBio": "Since 2001, UNITON has been operating its various branches of activity in the European market, specialising in embroidery and related textile services.",
-  "city": "Beaurepaire",
-  "countryCode": "FR",
-  "street": "Chemin du Pied Menu, ZI Les Fromentaux",
-  "postalCode": "38270",
-  "phoneNumber": "+33474482814",
-  "website": "http://www.uniton.fr/",
-  "logoUrl": "https://media.visable.com/company/9d8740d7-...",
-  "latitude": 45.324625,
-  "longitude": 5.052226,
-  "foundingYear": 2001,
-  "employeeCount": "5-9",
-  "productCount": 10,
-  "europagesUrl": "https://www.europages.co.uk/en/company/uniton-20160084/",
-  "europagesId": 1344161,
-  "keywords": ["embroidery", "textiles", "workwear"],
-  "supplierTypes": ["distribution"],
-  "scrapedAt": "2026-04-29T10:00:00+00:00"
+  "id": "20029302",
+  "name": "Innowise Group",
+  "description": "Company for Software Development...",
+  "website": "https://innowise.com/de",
+  "phone": "+4968198899959",
+  "email": null,
+  "address": "Grosse Gallusstrasse 16, 60312 Frankfurt am Main",
+  "city": "Frankfurt am Main",
+  "postal_code": "60312",
+  "country": "Germany",
+  "country_code": "DE",
+  "latitude": 50.11159,
+  "longitude": 8.6734,
+  "logo_url": "https://media.visable.com/...",
+  "employee_count": "1000+",
+  "year_founded": "2007",
+  "supplier_type": "Service provider",
+  "categories": ["Software development", "IT consulting"],
+  "certifications": ["ISO 9001"],
+  "source_url": "https://www.europages.co.uk/en/company/innowise-group-20029302",
+  "source_platform": "europages.com",
+  "scraped_at": "2026-03-26T10:30:00Z"
 }
 ```
-
-## Output format and export
-
-Results are stored in an Apify dataset and available in multiple formats from the Apify console:
-
-- **JSON** — default, one object per record
-- **CSV** — flat spreadsheet, opens directly in Excel or Google Sheets
-- **XLSX** — Excel format
-- **JSONL** — one JSON object per line, useful for streaming pipelines
-
-Use the Apify API to fetch results programmatically or connect via Zapier, Make, or any webhook-based integration.
-
-## Performance
-
-| Metric | Value |
-| --- | --- |
-| Results per page | 30 companies |
-| Retries per page | Up to 3 on empty response |
-| Max results per keyword | 1,000 |
-| Actor memory | 512 MB |
-| Actor timeout | 1 hour |
-
-Speed depends on network latency and Europages server response time. Most searches collect 30 results in 3–6 seconds per page. A full run of 1,000 results across 34 pages typically takes 3–8 minutes.
-
-## Good use cases
-
-- Building prospect lists of suppliers or manufacturers across multiple product categories in one run
-- Finding European companies in a niche before entering a new market
-- Enriching a CRM with contact data, coordinates, and founding years
-- Mapping supplier density by country or product type
-- Monitoring which companies list a particular product or service over time
-
-## Limitations
-
-- **Max 1,000 results per keyword.** Europages limits how deep you can paginate. For very broad keywords that match tens of thousands of companies, narrow your search term or split by region using separate keyword runs.
-- **Contact data varies.** Phone numbers are only shown when the company has chosen to make them public.
-- **Keyword matching is Europages' own.** The actor collects whatever Europages returns for a given search term — it does not apply additional filtering.
-- **Free listings have no package tier.** The `packageTier` field only appears for companies on paid Europages plans.
 
 ## Tips
 
-**Be specific with keywords.** `cnc machining` returns sharper results than `manufacturing`. `solar panel installation` beats `energy`. The more precise the term, the more relevant the companies.
+- **Language** controls descriptions, categories, and supplier types. Set `language: "en"` for English, `language: "de"` for German, etc. All 21 Europages languages are supported.
+- **Include Details = OFF** (default) is fast and already returns most data: website, phone, description, address, GPS, employee count, supplier type, categories, and more.
+- **Include Details = ON** adds social URLs (LinkedIn, Facebook), certifications, and email from the detail page. Only enable if you need these.
+- **Datacenter proxy** works fine for Europages, no need for residential.
 
-**Use multiple keywords in one job.** Instead of running three separate jobs, add all your terms at once. Each runs independently with its own result limit.
+## Pricing
 
-**Combine with country targeting.** Europages search results already include a `countryCode` field on every record. After collection, filter your dataset by country in a spreadsheet or downstream pipeline.
+This actor uses pay-per-result pricing. Each company is charged exactly once — the price depends on whether you enable `includeDetails` or not:
 
-**Raise the timeout if needed.** If you see timeout errors, set `requestTimeoutSecs` to 90 or 120. The default of 60 seconds covers most searches.
+| Event | Price | When charged |
+| --- | --- | --- |
+| Actor start | $0.005 | Once per run |
+| Company found | $0.003 | Only when `includeDetails` is OFF — returns basic search data (name, city, country, employee count) |
+| Company with full details | $0.005 | Only when `includeDetails` is ON — returns full profile (website, phone, address, GPS, description, categories, certifications, etc.) |
+
+### Cost examples
+
+**With full details (`includeDetails` = ON, default):**
+1 × $0.005 start + 1,000 × $0.005 detail = **$5.005 total**
+
+**Without details (`includeDetails` = OFF, faster):**
+1 × $0.005 start + 1,000 × $0.003 search = **$3.005 total**
+
+## Related Actors
+
+**International B2B Directories**
+
+- [Made-in-China Scraper](https://apify.com/santamaria-automations/made-in-china-scraper) -- Chinese manufacturer and supplier directory
+- [GlobalSources Scraper](https://apify.com/santamaria-automations/globalsources-scraper) -- Asian manufacturer and supplier directory
+- [Clutch.co Scraper](https://apify.com/santamaria-automations/clutch-co-scraper) -- B2B agency reviews and ratings
+
+**DACH Business Directories**
+
+- [wlw.de Scraper](https://apify.com/santamaria-automations/wlw-de-scraper) -- German B2B supplier directory
+- [Gelbe Seiten Scraper](https://apify.com/santamaria-automations/gelbeseiten-de-scraper) -- German Yellow Pages
+- [Herold.at Scraper](https://apify.com/santamaria-automations/herold-at-scraper) -- Austrian Yellow Pages
+- [FirmenABC.at Scraper](https://apify.com/santamaria-automations/firmenabc-at-scraper) -- Austrian business directory
+- [search.ch Scraper](https://apify.com/santamaria-automations/search-ch-scraper) -- Swiss business directory
+
+**Enrich your leads**
+
+- [Website Email & Phone Scraper](https://apify.com/santamaria-automations/website-email-scraper) -- Extract emails and phones from company websites
+- [Website Contact Extractor](https://apify.com/santamaria-automations/website-contact-extractor) -- Extract team members and decision-makers
+- [Google Maps Scraper](https://apify.com/santamaria-automations/google-maps-scraper) -- Find businesses by location
+- [Trustpilot Reviews Scraper](https://apify.com/santamaria-automations/trustpilot-scraper) -- Get company reviews and ratings
+
+If something is not working or you're missing a feature or data field, please [open an issue](https://console.apify.com/actors/nxWa8REWYk8Epik7y/issues) and we'll look into it.
